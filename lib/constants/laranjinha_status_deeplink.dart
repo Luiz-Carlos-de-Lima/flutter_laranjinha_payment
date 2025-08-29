@@ -1,0 +1,1 @@
+enum LaranjinhaStatusDeeplink { SUCCESS, ERROR }
