@@ -376,8 +376,8 @@ class _PrintPage extends StatefulWidget {
 }
 
 class _PrintPageState extends State<_PrintPage> {
-  final _flutterLaranjinhaPaymentPlugin = FlutterLaranjinhaPayment();
   final _printTextEC = TextEditingController();
+  final _imagePathEC = TextEditingController();
   final List<DropdownMenuItem<LaranjinhaPrintType>> _listPrintType = LaranjinhaPrintType.values
       .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
       .toList();
@@ -389,19 +389,76 @@ class _PrintPageState extends State<_PrintPage> {
       .toList();
 
   LaranjinhaPrintType _printType = LaranjinhaPrintType.line;
-  LaranjinhaPrintAlign? _printAlign = LaranjinhaPrintAlign.center;
-  LaranjinhaPrintSize _printSize = LaranjinhaPrintSize.medium;
+  LaranjinhaPrintAlign? _printAlign = null;
+  LaranjinhaPrintSize? _printSize = null;
+  bool _ignoreLineBreak = false;
+  String? _defaultImage64;
+  List<Map> _previewBase64 = [];
+
+  final List<LaranjinhaContentprint> _receiptContent = [];
 
   @override
   void initState() {
     super.initState();
+    _loadDefaultImage();
+  }
+
+  @override
+  void dispose() {
+    _printTextEC.dispose();
+    _imagePathEC.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadDefaultImage() async {
+    final image64 = await imageToBase64('https://css-tricks.com/wp-content/uploads/2022/08/flutter-clouds.jpg');
+    setState(() {
+      _defaultImage64 = image64;
+      if (_imagePathEC.text.isEmpty && image64 != null) {
+        _imagePathEC.text = image64;
+      }
+    });
+  }
+
+  void _addToReceipt() {
+    String? image64;
+    if (_printType == LaranjinhaPrintType.image) {
+      image64 = _imagePathEC.text.isNotEmpty ? _imagePathEC.text : _defaultImage64;
+      if (image64 == null || image64.isEmpty) return;
+    }
+    if (_printType != LaranjinhaPrintType.image && _printTextEC.text.isEmpty) return;
+
+    final item = LaranjinhaContentprint(
+      type: _printType,
+      align: _printAlign,
+      content: _printTextEC.text,
+      size: _printSize,
+      imagePath: image64,
+      ignoreLineBreak: _ignoreLineBreak,
+    );
+    setState(() {
+      _receiptContent.add(item);
+      _printTextEC.clear();
+    });
+  }
+
+  void _removeLine(int index) {
+    setState(() {
+      _receiptContent.removeAt(index);
+    });
+  }
+
+  void _clearReceipt() {
+    setState(() {
+      _receiptContent.clear();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(title: Text('impressão'), centerTitle: true, leading: Container()),
+        appBar: AppBar(title: Text('Impressão'), centerTitle: true, leading: Container()),
         body: Center(
           child: SingleChildScrollView(
             child: Padding(
@@ -421,77 +478,152 @@ class _PrintPageState extends State<_PrintPage> {
                       isExpanded: true,
                       underline: Container(),
                       onChanged: (value) {
-                        _printType = value!;
-                        if (_printType == LaranjinhaPrintType.text) {
-                          _printAlign = LaranjinhaPrintAlign.center;
-                          _printSize = LaranjinhaPrintSize.medium;
-                        } else {
-                          _printAlign = LaranjinhaPrintAlign.left;
-                          _printSize = LaranjinhaPrintSize.medium;
-                        }
-                        setState(() {});
+                        setState(() {
+                          _printType = value!;
+                          if (_printType == LaranjinhaPrintType.text) {
+                            _printAlign = LaranjinhaPrintAlign.center;
+                            _printSize = LaranjinhaPrintSize.medium;
+                          } else {
+                            _printAlign = null;
+                            _printSize = null;
+                          }
+                        });
                       },
                     ),
                   ),
-                  if (_printType == LaranjinhaPrintType.text)
+                  if (_printType == LaranjinhaPrintType.text) ...[
+                    SizedBox(height: 10),
+                    Align(alignment: Alignment.centerLeft, child: Text('Alinhamento da Impressão')),
+                    SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(border: Border.all(), borderRadius: BorderRadius.circular(5)),
+                      height: 55,
+                      child: DropdownButton(
+                        value: _printAlign,
+                        items: _listPrintAlign,
+                        isExpanded: true,
+                        underline: Container(),
+                        onChanged: (value) {
+                          setState(() {
+                            _printAlign = value!;
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Align(alignment: Alignment.centerLeft, child: Text('Tamanho da Impressão')),
+                    SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10.0),
+                      decoration: BoxDecoration(border: Border.all(), borderRadius: BorderRadius.circular(5)),
+                      height: 55,
+                      child: DropdownButton(
+                        value: _printSize,
+                        items: _listPrintSize,
+                        isExpanded: true,
+                        underline: Container(),
+                        onChanged: (value) {
+                          setState(() {
+                            _printSize = value!;
+                          });
+                        },
+                      ),
+                    ),
+                    SwitchListTile(
+                      title: Text('Ignorar Quebra de Linha'),
+                      value: _ignoreLineBreak,
+                      onChanged: (val) {
+                        setState(() {
+                          _ignoreLineBreak = val;
+                        });
+                      },
+                    ),
+                  ],
+                  if (_printType != LaranjinhaPrintType.image)
                     Column(
                       children: [
                         SizedBox(height: 10),
-                        Align(alignment: Alignment.centerLeft, child: Text('Alinhamento da Impressão')),
+                        Align(alignment: Alignment.centerLeft, child: Text('Texto para Impressão')),
                         SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10.0),
-                          decoration: BoxDecoration(border: Border.all(), borderRadius: BorderRadius.circular(5)),
-                          height: 55,
-                          child: DropdownButton(
-                            value: _printAlign,
-                            items: _listPrintAlign,
-                            isExpanded: true,
-                            underline: Container(),
-                            onChanged: (value) {
-                              _printAlign = value!;
-                              setState(() {});
-                            },
-                          ),
+                        TextFormField(
+                          controller: _printTextEC,
+                          decoration: InputDecoration(hintText: 'Texto', border: OutlineInputBorder()),
                         ),
                       ],
-                    ),
-                  if (_printType == LaranjinhaPrintType.text)
+                    )
+                  else
                     Column(
                       children: [
                         SizedBox(height: 10),
-                        Align(alignment: Alignment.centerLeft, child: Text('Tamanho da Impressão')),
+                        Align(alignment: Alignment.centerLeft, child: Text('Base64 da Imagem')),
                         SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10.0),
-                          decoration: BoxDecoration(border: Border.all(), borderRadius: BorderRadius.circular(5)),
-                          height: 55,
-                          child: DropdownButton(
-                            value: _printSize,
-                            items: _listPrintSize,
-                            isExpanded: true,
-                            underline: Container(),
-                            onChanged: (value) {
-                              _printSize = value!;
-                              setState(() {});
-                            },
-                          ),
+                        TextFormField(
+                          controller: _imagePathEC,
+                          decoration: InputDecoration(hintText: 'Cole o Base64 da imagem', border: OutlineInputBorder()),
+                          minLines: 2,
+                          maxLines: 4,
                         ),
+                        if (_defaultImage64 != null)
+                          Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Image.memory(base64Decode(_defaultImage64!))),
                       ],
                     ),
-                  (_printType != LaranjinhaPrintType.image)
-                      ? Column(
-                          children: [
-                            SizedBox(height: 10),
-                            Align(alignment: Alignment.centerLeft, child: Text('Texto para Impressão')),
-                            SizedBox(height: 10),
-                            TextFormField(
-                              controller: _printTextEC,
-                              decoration: InputDecoration(hintText: 'Texto', border: OutlineInputBorder()),
+                  SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(onPressed: _addToReceipt, child: Text('Adicionar ao Recibo')),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(onPressed: _receiptContent.isEmpty ? null : _clearReceipt, child: Text('Remover tudo')),
+                      ),
+                    ],
+                  ),
+                  Divider(height: 32),
+                  if (_receiptContent.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Conteúdo do Recibo:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ..._receiptContent.asMap().entries.map(
+                          (entry) => Card(
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              title: Text(entry.value.type.name),
+                              subtitle: Text(entry.value.type == LaranjinhaPrintType.image ? 'Imagem' : (entry.value.content ?? '')),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                tooltip: 'Remover linha',
+                                onPressed: () => _removeLine(entry.key),
+                              ),
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  SizedBox(height: 20),
+                  if (_previewBase64.isNotEmpty) ...[
+                    Text("Pré-visualização:", style: TextStyle(fontWeight: FontWeight.bold)),
+                    SizedBox(height: 10),
+                    ...List.generate(_previewBase64.length, (index) {
+                      if (_previewBase64[index]['imageBase64'] is String && _previewBase64[index]['imageBase64'].isNotEmpty) {
+                        return Column(
+                          children: [
+                            if (_previewBase64[index]['messageError'] != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                child: Text(_previewBase64[index]['messageError'], style: TextStyle(color: Colors.red)),
+                              ),
+                            Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Image.memory(base64Decode(_previewBase64[index]['imageBase64']))),
                           ],
-                        )
-                      : Column(children: [Image.network('https://zup.com.br/wp-content/uploads/2021/03/5ce2fde702ef93c1e994d987_flutter.png')]),
+                        );
+                      }
+
+                      return SizedBox.shrink();
+                    }),
+                    SizedBox(height: 10),
+                  ],
                 ],
               ),
             ),
@@ -518,33 +650,22 @@ class _PrintPageState extends State<_PrintPage> {
                 child: SizedBox(
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        String? image64;
-                        if (_printType == LaranjinhaPrintType.image) {
-                          image64 = await imageToBase64('https://zup.com.br/wp-content/uploads/2021/03/5ce2fde702ef93c1e994d987_flutter.png');
-                        }
-                        final print = LaranjinhaPrintPayload(
-                          printableContent: [
-                            LaranjinhaContentprint(
-                              type: _printType,
-                              align: _printAlign,
-                              content: '------------------------------------------------',
-                              size: _printSize,
-                              imagePath: image64,
-                            ),
-                          ],
-                        );
-                        await _flutterLaranjinhaPaymentPlugin.print(printPayload: print);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Impressão realizada com sucesso!")));
-                      } on LaranjinhaPrintException catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro desconhecido')));
-                      }
-                    },
+                    onPressed: _receiptContent.isEmpty
+                        ? null
+                        : () async {
+                            try {
+                              final print = LaranjinhaPrintPayload(printableContent: List<LaranjinhaContentprint>.from(_receiptContent));
+                              await flutterLaranjinhaPaymentPlugin.print(printPayload: print);
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Impressão realizada com sucesso!")));
+                              setState(() {});
+                            } on LaranjinhaPrintException catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro desconhecido')));
+                            }
+                          },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                    child: Text('imprimir'),
+                    child: Text('Imprimir'),
                   ),
                 ),
               ),

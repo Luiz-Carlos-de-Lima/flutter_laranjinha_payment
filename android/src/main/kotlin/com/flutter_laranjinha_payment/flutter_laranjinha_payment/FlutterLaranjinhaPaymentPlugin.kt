@@ -7,6 +7,7 @@ import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.Paymen
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.RefundDeeplink
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.ReprintDeeplink
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.services.DeviceInfo
+import com.flutter_laranjinha_payment.flutter_laranjinha_payment.services.PrintService
 import rede.smartrede.sdk.api.IRedeSdk
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -16,6 +17,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import rede.smartrede.commons.callback.IPrinterCallback
 
 class FlutterLaranjinhaPaymentPlugin :
     FlutterPlugin,
@@ -56,22 +58,42 @@ class FlutterLaranjinhaPaymentPlugin :
                 }
                 starDeeplink(refundDeeplink, bundle)
             }
-//            "print" -> {
-//                val listPrintContent: List<HashMap<String, Any?>>? = call.argument<List<HashMap<String, Any?>>>("printable_content")
-//                val bundleResult = PrintService().start(listPrintContent?.toBundleList())
-//
-//                if (bundleResult.getString("code") == "SUCCESS") {
-//                    val data: Map<String, Any?> = mapOf(
-//                        "code" to "SUCCESS",
-//                        "message" to bundleResult.getString("message")
-//                    )
-//                    resultScope?.success(data)
-//                } else {
-//                    val message: String = (bundleResult.getString("message") ?: "result error").toString()
-//                    resultScope?.error((bundleResult.getString("code") ?: "ERROR").toString(), message, null)
-//                    resultScope = null
-//                }
-//            }
+            "print" -> {
+                val listPrintContent: List<HashMap<String, Any?>>? = call.argument<List<HashMap<String, Any?>>>("printable_content")
+
+
+
+                val bundleResult = PrintService().start(
+                    redeSdk!!,
+                    PrinterCallback(
+                        onSuccess = {
+                            resultScope?.success(mapOf(
+                                "code" to "SUCCESS",
+                                "data" to true
+                            ))
+                            resultScope = null
+                        },
+                        onFailure = { message ->
+                            resultScope?.error("ERROR", message, null)
+                            resultScope = null
+                        }
+                    ),
+                    listPrintContent?.toBundleList(),
+                    binding!!
+                )
+
+                if (bundleResult.getString("code") == "SUCCESS") {
+                    val data: Map<String, Any?> = mapOf(
+                        "code" to "SUCCESS",
+                        "message" to bundleResult.getString("message")
+                    )
+                    resultScope?.success(data)
+                } else {
+                    val message: String = (bundleResult.getString("message") ?: "result error").toString()
+                    resultScope?.error((bundleResult.getString("code") ?: "ERROR").toString(), message, null)
+                    resultScope = null
+                }
+            }
             "reprint" -> {
                 starDeeplink(reprintDeeplink, Bundle())
             }
@@ -86,6 +108,33 @@ class FlutterLaranjinhaPaymentPlugin :
                 resultScope?.error("ERROR", "Value of ", null)
             }
         }
+    }
+
+    private fun List<Map<String, Any?>>.toBundleList(): ArrayList<Bundle> {
+        val bundleList = ArrayList<Bundle>()
+        for (map in this) {
+            bundleList.add(map.toBundle())
+        }
+        return bundleList
+    }
+
+    private fun Map<String, Any?>.toBundle(): Bundle {
+        val bundle = Bundle()
+        for ((key, value) in this) {
+            when (value) {
+                is String -> bundle.putString(key, value)
+                is Int -> bundle.putInt(key, value)
+                is Boolean -> bundle.putBoolean(key, value)
+                is Double -> bundle.putDouble(key, value)
+                is Float -> bundle.putFloat(key, value)
+                is Long -> bundle.putLong(key, value)
+                is Map<*, *> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    bundle.putBundle(key, (value as? Map<String, Any?>)?.toBundle())
+                }
+            }
+        }
+        return bundle
     }
 
     private fun starDeeplink(deeplink: Deeplink, bundle: Bundle) {
@@ -152,3 +201,18 @@ class FlutterLaranjinhaPaymentPlugin :
         redeSdk = null;
     }
 }
+
+class PrinterCallback(
+    private val onSuccess: () -> Unit,
+    private val onFailure: ( String) -> Unit
+) : IPrinterCallback {
+
+    override fun onError(errorMessage: String) {
+        onFailure(errorMessage)
+    }
+
+    override fun onCompleted() {
+        onSuccess()
+    }
+}
+
