@@ -9,7 +9,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import rede.smartrede.sdk.RedePayments
 import rede.smartrede.sdk.api.IRedeSdk
 
-class ReprintDeeplink: Deeplink() {
+class ReprintDeeplink: Deeplink {
     companion object {
         const val REQUEST_CODE = 10005
     }
@@ -39,6 +39,29 @@ class ReprintDeeplink: Deeplink() {
                 putString("code", "ERROR")
                 putString("message", e.message ?: "An unexpected error occurred")
             }
+        }
+    }
+
+    override fun validateIntent(intent: Intent?): Map<String, Any?> {
+        try {
+            if (intent == null) {
+                throw IllegalArgumentException("No intent data")
+            }
+
+            return mapOf(
+                "code" to "SUCCESS",
+                "message" to "Reimpressão feita com sucesso"
+            )
+        } catch (e: IllegalArgumentException) {
+            return mapOf(
+                "code" to "ERROR",
+                "message" to e.message
+            )
+        } catch (e: Exception) {
+            return mapOf(
+                "code" to "ERROR",
+                "message" to e.message
+            )
         }
     }
 }

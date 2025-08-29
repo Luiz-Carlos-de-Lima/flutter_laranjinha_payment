@@ -6,6 +6,7 @@ import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.Deepli
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.PaymentDeeplink
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.RefundDeeplink
 import com.flutter_laranjinha_payment.flutter_laranjinha_payment.deeplink.ReprintDeeplink
+import com.flutter_laranjinha_payment.flutter_laranjinha_payment.services.DeviceInfo
 import rede.smartrede.sdk.api.IRedeSdk
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -49,14 +50,6 @@ class FlutterLaranjinhaPaymentPlugin :
                 }
                 starDeeplink(paymentDeeplink, bundle)
             }
-//            "statusPayment" -> {
-//                val bundle = Bundle().apply {
-//                    putString("callerId", call.argument<String>("callerId"))
-//                    putBoolean("allowPrintCurrentTransaction", call.argument<Boolean>("allowPrintCurrentTransaction") ?: false)
-//                }
-//                starDeeplink(statusDeeplink, bundle)
-//            }
-
             "refund" -> {
                 val bundle = Bundle().apply {
                     putString("nsu", call.argument<String>("nsu"))
@@ -82,16 +75,13 @@ class FlutterLaranjinhaPaymentPlugin :
             "reprint" -> {
                 starDeeplink(reprintDeeplink, Bundle())
             }
-//            "info" -> {
-//                starDeeplink(infoDeeplink, Bundle())
-//            }
-//            "getSerialNumberAndDeviceModel" -> {
-//                val deviceInfo = DeviceInfo().getSerialNumberAndDeviceModel()
-//                resultScope?.success(mapOf(
-//                    "code" to "SUCCESS",
-//                    "data" to deviceInfo
-//                ))
-//            }
+            "getSerialNumberAndDeviceModel" -> {
+                val deviceInfo = DeviceInfo().getSerialNumberAndDeviceModel()
+                resultScope?.success(mapOf(
+                    "code" to "SUCCESS",
+                    "data" to deviceInfo
+                ))
+            }
             else ->  {
                 resultScope?.error("ERROR", "Value of ", null)
             }
@@ -113,41 +103,11 @@ class FlutterLaranjinhaPaymentPlugin :
         if (paymentData["code"] == "SUCCESS" && paymentData["data"] != null) {
             resultScope?.success(paymentData)
             resultScope = null
-        } else if (paymentData["code"] == "PENDING" && paymentData["data"] != null) {
-            resultScope?.success(paymentData)
-            resultScope = null
         } else  {
             val message: String = (paymentData["message"] ?: "result error").toString()
             resultScope?.error((paymentData["code"] ?: "ERROR").toString(), message, null)
             resultScope = null
         }
-    }
-
-    private fun List<Map<String, Any?>>.toBundleList(): ArrayList<Bundle> {
-        val bundleList = ArrayList<Bundle>()
-        for (map in this) {
-            bundleList.add(map.toBundle())
-        }
-        return bundleList
-    }
-
-    private fun Map<String, Any?>.toBundle(): Bundle {
-        val bundle = Bundle()
-        for ((key, value) in this) {
-            when (value) {
-                is String -> bundle.putString(key, value)
-                is Int -> bundle.putInt(key, value)
-                is Boolean -> bundle.putBoolean(key, value)
-                is Double -> bundle.putDouble(key, value)
-                is Float -> bundle.putFloat(key, value)
-                is Long -> bundle.putLong(key, value)
-                is Map<*, *> -> {
-                    @Suppress("UNCHECKED_CAST")
-                    bundle.putBundle(key, (value as? Map<String, Any?>)?.toBundle())
-                }
-            }
-        }
-        return bundle
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -165,21 +125,12 @@ class FlutterLaranjinhaPaymentPlugin :
                     PaymentDeeplink.REQUEST_CODE -> {
                         responseMap = paymentDeeplink.validateIntent(intent)
                     }
-//                    StatusDeeplink.REQUEST_CODE -> {
-//                        responseMap = statusDeeplink.validateIntent(intent)
-//                    }
-//                    PreAuthorizationDeeplink.REQUEST_CODE -> {
-//                        responseMap = preAuthorizationDeeplink.validateIntent(intent)
-//                    }
                     RefundDeeplink.REQUEST_CODE -> {
                         responseMap = refundDeeplink.validateIntent(intent)
                     }
                     ReprintDeeplink.REQUEST_CODE -> {
                         responseMap = reprintDeeplink.validateIntent(intent)
                     }
-//                    InfoDeeplink.REQUEST_CODE -> {
-//                        responseMap = infoDeeplink.validateIntent(intent)
-//                    }
                 }
 
                 sendResultData(responseMap)

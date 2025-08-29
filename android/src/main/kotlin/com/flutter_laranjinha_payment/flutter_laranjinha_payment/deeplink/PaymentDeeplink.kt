@@ -5,12 +5,16 @@ import android.content.Intent
 import android.os.Bundle
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import rede.smartrede.sdk.FlexTipoPagamento
+import rede.smartrede.sdk.Payment
 import rede.smartrede.sdk.PaymentIntentBuilder
+import rede.smartrede.sdk.PaymentStatus
 import rede.smartrede.sdk.RedePaymentValidationError
 import rede.smartrede.sdk.RedePayments
 import rede.smartrede.sdk.api.IRedeSdk
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-class PaymentDeeplink: Deeplink() {
+class PaymentDeeplink: Deeplink {
     companion object {
         const val REQUEST_CODE = 10001
     }
@@ -59,6 +63,79 @@ class PaymentDeeplink: Deeplink() {
                 putString("code", "ERROR")
                 putString("message", e.message ?: "An unexpected error occurred")
             }
+        }
+    }
+
+    override fun validateIntent(intent: Intent?): Map<String, Any?> {
+        try {
+            if (intent == null) {
+                throw IllegalArgumentException("No intent data")
+            }
+
+            val payment: Payment = RedePayments.getPaymentFromIntent(intent)
+                ?: throw IllegalStateException("Payment not found in Intent")
+
+            return when (payment.status) {
+                PaymentStatus.AUTHORIZED -> {
+                    val receipt = payment.receipt
+                    val calendar = receipt.date
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                    val dateStr = dateFormat.format(calendar.time)
+                    val timeStr = timeFormat.format(calendar.time)
+                    val data = mapOf(
+                        "storeName" to receipt.storeName,
+                        "date" to dateStr,
+                        "time" to timeStr,
+                        "value" to receipt.value,
+                        "auto" to receipt.auto,
+                        "nsu" to receipt.nsu,
+                        "issuerName" to receipt.issuerName,
+                        "cardHolderName" to receipt.cardHolderName,
+                        "terminalNumber" to receipt.terminalNumber,
+                        "cv" to receipt.cv,
+                        "aid" to receipt.aid,
+                        "arqc" to receipt.arqc,
+                        "installments" to receipt.installments,
+                        "installmentValue" to receipt.installmentValue,
+                        "cnpj" to receipt.cnpj,
+                        "operationType" to receipt.operationType,
+                        "maskedPan" to receipt.maskedPan,
+                        "pixTransactionId" to receipt.pixTransactionId
+                    )
+                    mapOf(
+                        "code" to "SUCCESS",
+                        "data" to data
+                    )
+                }
+
+                PaymentStatus.FAILED -> {
+                    throw IllegalStateException("Payment failed")
+                }
+
+                PaymentStatus.DECLINED -> {
+                    throw IllegalStateException("Payment declined")
+                }
+
+                else -> {
+                    throw IllegalStateException("Unknown payment status: ${payment.status}")
+                }
+            }
+        } catch (e: IllegalStateException) {
+            return mapOf(
+                "code" to "ERROR",
+                "message" to e.message
+            )
+        } catch (e: IllegalArgumentException) {
+            return mapOf(
+                "code" to "ERROR",
+                "message" to e.message
+            )
+        } catch (e: Exception) {
+            return mapOf(
+                "code" to "ERROR",
+                "message" to e.message
+            )
         }
     }
 
