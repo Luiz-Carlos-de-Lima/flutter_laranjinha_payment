@@ -16,19 +16,23 @@ class PrintService {
         binding: ActivityPluginBinding
     ): Bundle {
         return try {
-            val terminalFunctions: ITerminalFunctions = redeSdk.getTerminalFunctions()
-            val printer: IConnectorPrinter = terminalFunctions.getConnectorPrinter()
-
-            validatePrintContent(printableContent)
-
-            val bitmap: Bitmap = GenerateBitmap()
-                .convertPrintableItemsToBitmap(binding.activity, printableContent!!)
-                ?: throw IllegalStateException("Não foi possível gerar o bitmap de impressão!")
-
             Worker.postToWorkerThread {
                 try {
+                    val terminalFunctions: ITerminalFunctions = redeSdk.getTerminalFunctions()
+                    val printer: IConnectorPrinter = terminalFunctions.getConnectorPrinter()
+
+                    validatePrintContent(printableContent)
+
+                    val bitmap: Bitmap = GenerateBitmap()
+                        .convertPrintableItemsToBitmap(binding.activity, printableContent!!)
+                        ?: throw IllegalStateException("Não foi possível gerar o bitmap de impressão!")
+
                     printer.setPrinterCallback(printerCallback)
                     printer.printBitmap(bitmap)
+                } catch (e: IllegalArgumentException) {
+                    printerCallback.onError(e.message ?: "Falha ao imprimir")
+                } catch (e: IllegalStateException) {
+                    printerCallback.onError(e.message ?: "Falha ao imprimir")
                 } catch (e: Exception) {
                     printerCallback.onError(e.message ?: "Falha ao imprimir")
                 }
