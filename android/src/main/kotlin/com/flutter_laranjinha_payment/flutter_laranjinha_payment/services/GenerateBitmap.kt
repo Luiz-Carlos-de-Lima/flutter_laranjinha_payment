@@ -25,7 +25,10 @@ class GenerateBitmap {
                         if (originalBase64.isNotBlank()) {
                             val decodedBytes = Base64.decode(originalBase64, Base64.DEFAULT)
                             val originalBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-                            originalBitmap?.let { bitmaps.add(ensureWhiteBackground(it)) }
+                            originalBitmap?.let {
+                                val resized = resizeBitmapToPrinterWidth(it)
+                                bitmaps.add(ensureWhiteBackground(resized))
+                            }
                         }
                     } else {
                         Log.d("condicional Content", "Inicio")
@@ -50,6 +53,12 @@ class GenerateBitmap {
         } catch (e: Exception) {
             return null;
         }
+    }
+
+    private fun resizeBitmapToPrinterWidth(bitmap: Bitmap, targetWidth: Int = 384): Bitmap {
+        val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+        val targetHeight = (targetWidth * aspectRatio).toInt()
+        return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
     }
 
     private fun mergeBitmapsVertically(bitmaps: List<Bitmap>): Bitmap {

@@ -61,8 +61,6 @@ class FlutterLaranjinhaPaymentPlugin :
             "print" -> {
                 val listPrintContent: List<HashMap<String, Any?>>? = call.argument<List<HashMap<String, Any?>>>("printable_content")
 
-
-
                 val bundleResult = PrintService().start(
                     redeSdk!!,
                     PrinterCallback(
@@ -82,13 +80,7 @@ class FlutterLaranjinhaPaymentPlugin :
                     binding!!
                 )
 
-                if (bundleResult.getString("code") == "SUCCESS") {
-                    val data: Map<String, Any?> = mapOf(
-                        "code" to "SUCCESS",
-                        "message" to bundleResult.getString("message")
-                    )
-                    resultScope?.success(data)
-                } else {
+                if (bundleResult.getString("code") == "ERROR") {
                     val message: String = (bundleResult.getString("message") ?: "result error").toString()
                     resultScope?.error((bundleResult.getString("code") ?: "ERROR").toString(), message, null)
                     resultScope = null

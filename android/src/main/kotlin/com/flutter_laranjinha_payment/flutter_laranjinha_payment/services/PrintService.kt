@@ -9,71 +9,65 @@ import rede.smartrede.commons.contract.ITerminalFunctions
 import rede.smartrede.sdk.api.IRedeSdk
 
 class PrintService {
-    fun start( redeSdk: IRedeSdk, printerCallback: IPrinterCallback, printableContent: List<Bundle>?, binding: ActivityPluginBinding): Bundle {
-        try {
+    fun start(
+        redeSdk: IRedeSdk,
+        printerCallback: IPrinterCallback,
+        printableContent: List<Bundle>?,
+        binding: ActivityPluginBinding
+    ): Bundle {
+        return try {
             val terminalFunctions: ITerminalFunctions = redeSdk.getTerminalFunctions()
             val printer: IConnectorPrinter = terminalFunctions.getConnectorPrinter()
+
             validatePrintContent(printableContent)
-            printer.setPrinterCallback(printerCallback)
-            val generateBitmap: GenerateBitmap = GenerateBitmap()
-            val bitmap: Bitmap =
-                generateBitmap.convertPrintableItemsToBitmap(binding.activity, printableContent!!)
-                    ?: throw IllegalStateException("Não foi possível gerar o bitmap de impressão!")
 
-            printer.printBitmap(bitmap)
+            val bitmap: Bitmap = GenerateBitmap()
+                .convertPrintableItemsToBitmap(binding.activity, printableContent!!)
+                ?: throw IllegalStateException("Não foi possível gerar o bitmap de impressão!")
 
-            return Bundle().apply {
+            Worker.postToWorkerThread {
+                try {
+                    printer.setPrinterCallback(printerCallback)
+                    printer.printBitmap(bitmap)
+                } catch (e: Exception) {
+                    printerCallback.onError(e.message ?: "Falha ao imprimir")
+                }
+            }
+
+            Bundle().apply {
                 putString("code", "SUCCESS")
                 putBoolean("data", true)
             }
         } catch (e: IllegalStateException) {
-            return Bundle().apply {
+            Bundle().apply {
                 putString("code", "ERROR")
                 putString("message", e.message)
             }
         } catch (e: Exception) {
-            return Bundle().apply {
+            Bundle().apply {
                 putString("code", "ERROR")
-                putString("message", e.message ?: "An unexpected error occurred")
+                putString("message", e.message ?: "Erro inesperado")
             }
         }
     }
 
     private fun validatePrintContent(printableContent: List<Bundle>?) {
-        if (printableContent == null) {
-            throw IllegalArgumentException("Invalid print data: printable_content")
-        }
+        if (printableContent == null) throw IllegalArgumentException("Invalid print data: printable_content")
 
-        for (content: Bundle in printableContent) {
-            val type: String? = content.getString("type")
-            if (type == "text") {
-                val contentOfType: String? = content.getString("content")
-                val align: String? = content.getString("align")
-                val size: String? = content.getString("size")
-
-                if (contentOfType == null) throw IllegalArgumentException("Invalid printable_content data: content can't null when type equal 'text'")
-                if (align !in listOf(
-                        "center",
-                        "right",
-                        "left"
-                    )
-                ) throw IllegalArgumentException("Invalid printable_content data: align cannot be different from 'center | right | left' when type equal 'text'")
-                if (size !in listOf(
-                        "big",
-                        "medium",
-                        "small"
-                    )
-                ) throw IllegalArgumentException("Invalid printable_content data: size  cannot be different from 'big | medium | small' when type equal 'text'")
-            } else if (type == "line") {
-                if (content.getString("content") == null) {
-                    throw IllegalArgumentException("Invalid printable_content data: content can't null when type equal 'text'")
+        for (content in printableContent) {
+            when (content.getString("type")) {
+                "text" -> {
+                    val c = content.getString("content")
+                    val align = content.getString("align")
+                    val size = content.getString("size")
+                    require(c != null) { "Invalid printable_content: content can't be null when type is 'text'" }
+                    require(align in listOf("center","right","left")) { "align must be 'center|right|left'" }
+                    require(size in listOf("big","medium","small")) { "size must be 'big|medium|small'" }
                 }
-            } else if (type == "image") {
-                if (content.getString("imagePath") == null) {
-                    throw IllegalArgumentException("Invalid printable_content data: content can't null when type equal 'text'")
-                }
+                "line" -> requireNotNull(content.getString("content")) { "Invalid printable_content: content can't be null when type is 'line'" }
+                "image" -> requireNotNull(content.getString("imagePath")) { "Invalid printable_content: imagePath can't be null when type is 'image'" }
+                else -> throw IllegalArgumentException("Invalid printable_content: unknown type")
             }
         }
     }
-
 }
