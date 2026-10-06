@@ -69,7 +69,7 @@ android {
 }
 
 dependencies {
-    implementation(name: "smartrede-sdk-l400-4.1.1.release", ext: "aar")
+    implementation(name: "smartrede-sdk-l400-4.3.28.release", ext: "aar")
     
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"

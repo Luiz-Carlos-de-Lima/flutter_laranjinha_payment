@@ -160,21 +160,29 @@ class FlutterLaranjinhaPaymentPlugin :
         binding = newBinding
 
         binding?.addActivityResultListener { requestCode: Int, resultCode: Int, intent: Intent? ->
-            if(Activity.RESULT_OK == resultCode) {
-                var responseMap: Map<String, Any?> = mapOf()
-                when (requestCode) {
-                    PaymentDeeplink.REQUEST_CODE -> {
-                        responseMap = paymentDeeplink.validateIntent(intent)
-                    }
-                    RefundDeeplink.REQUEST_CODE -> {
-                        responseMap = refundDeeplink.validateIntent(intent)
-                    }
-                    ReprintDeeplink.REQUEST_CODE -> {
-                        responseMap = reprintDeeplink.validateIntent(intent)
-                    }
-                }
+            val knownRequest = requestCode == PaymentDeeplink.REQUEST_CODE ||
+                requestCode == RefundDeeplink.REQUEST_CODE ||
+                requestCode == ReprintDeeplink.REQUEST_CODE
 
+            if (!knownRequest) {
+                return@addActivityResultListener false
+            }
+
+            if (Activity.RESULT_OK == resultCode) {
+                val responseMap: Map<String, Any?> = when (requestCode) {
+                    PaymentDeeplink.REQUEST_CODE -> paymentDeeplink.validateIntent(intent)
+                    RefundDeeplink.REQUEST_CODE -> refundDeeplink.validateIntent(intent)
+                    ReprintDeeplink.REQUEST_CODE -> reprintDeeplink.validateIntent(intent)
+                    else -> mapOf("code" to "ERROR", "message" to "Unknown request")
+                }
                 sendResultData(responseMap)
+            } else {
+                val message = when (resultCode) {
+                    Activity.RESULT_CANCELED -> "Operação cancelada na maquininha."
+                    else -> "Pagamento sem retorno da maquininha (resultCode=$resultCode)."
+                }
+                resultScope?.error("CANCELLED", message, null)
+                resultScope = null
             }
             true
         }
