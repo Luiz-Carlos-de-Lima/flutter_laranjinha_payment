@@ -20,3 +20,13 @@
 ## 1.0.3
 
 * Reduced `compileSdk` requirement to improve compatibility with older projects.
+
+## 1.0.4
+
+* Updated `smartrede-sdk` to 4.3.28 (L400).
+* `IRedeSdk` is now created once with `applicationContext` and kept for the app lifetime, as recommended by Rede (fixes intermittent "Activity is not available").
+* Activity binding is cleared on detach and the activity result listener is removed, avoiding duplicated listeners after config changes.
+* Distinct errors: `NO_ACTIVITY` and `SDK_UNAVAILABLE`, with Portuguese messages and logcat logs (tag `FlutterLaranjinha`).
+* `setInstallments` is only called for installment credit payments.
+* `packageName` is now sent on payment and reversal intents.
+* Cancelled or unanswered operations on the terminal now return a `CANCELLED` error instead of leaving the call pending.

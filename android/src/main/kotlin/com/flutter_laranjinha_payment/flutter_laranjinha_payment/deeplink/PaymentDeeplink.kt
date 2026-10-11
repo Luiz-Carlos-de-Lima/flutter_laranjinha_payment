@@ -28,13 +28,11 @@ class PaymentDeeplink: Deeplink {
 
             val redePayments: RedePayments = redeSdk.getRedePayments(binding.activity)
 
-            val paymentIntentBuilder: PaymentIntentBuilder = redePayments.intentForPaymentBuilder(paymentType, amount.toLong())
+            val paymentIntentBuilder: PaymentIntentBuilder = redePayments.intentForPaymentBuilder(paymentType, amount.toLong(), binding.activity.packageName)
 
             if (paymentType == FlexTipoPagamento.CREDITO_PARCELADO || paymentType == FlexTipoPagamento.CREDITO_PARCELADO_EMISSOR) {
                 paymentIntentBuilder.setInstallments(installments)
             }
-
-            paymentIntentBuilder.setInstallments(installments)
 
             val paymentIntent: Intent = paymentIntentBuilder.build()
 

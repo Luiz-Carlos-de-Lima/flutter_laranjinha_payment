@@ -28,7 +28,7 @@ class RefundDeeplink: Deeplink {
             }
 
             val redePayments: RedePayments = redeSdk.getRedePayments(binding.activity)
-            val reversal: Intent = redePayments.intentForReversal(nsu)
+            val reversal: Intent = redePayments.intentForReversal(nsu, binding.activity.packageName)
 
             binding.activity.startActivityForResult(reversal, REQUEST_CODE)
 
